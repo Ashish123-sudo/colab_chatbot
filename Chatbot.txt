@@ -1,0 +1,86 @@
+import os
+import json
+from fuzzywuzzy import process
+from google.colab import files
+
+def upload_memory_file():
+  try:
+    memory_filename = next(iter(files.upload()))
+
+    if not memory_filename.endswith('.json'):
+      raise Exception("Only JSON FILES are accepted")
+
+  except StopIteration:
+    memory_filename = 'memory_bank.json'
+    with open(memory_filename,'w') as memory_file:
+      json.dump({} , memory_file , indent = 2)
+
+  return memory_filename
+
+def update_memory_file(memory_filename , new_question_bank):
+  with open(memory_filename,'w') as memory_file:
+    json.dump(new_question_bank , memory_file, indent = 2)
+
+def delete_memory_file(memory_filename):
+  os.unlink(memory_filename)
+  #print("Memories Sucessfully Deleted")
+
+def read_memory_file(memory_filename):
+  with open(memory_filename,'r') as memory_file:
+    return json.load(memory_file)
+
+def search_memory_file(inp_question, question_list):
+  matches = process.extract(inp_question, question_list)
+  return matches[0][0] if matches else None
+
+#Chat Bot Begins Here
+
+#Deletes Previous Memories
+try:
+  delete_memory_file(memory_file_path)
+except (FileNotFoundError,NameError):
+  pass
+
+#Inputting Memory File
+print("Input Memory File(If you want to start off with 0 Memories Click 'Cancel Upload'):-")
+memory_file_path = upload_memory_file()
+memories = read_memory_file(memory_file_path)
+
+#Main ChatBot
+print("Welcome to Robo Bot:-\n-Input 'wrong' if the bot makes a mistake. To correct it\n-Input 'thoughts?' to download memory file from Robo\n-Input 'exit' to Exit program\n-Have Fun!")
+
+while True:
+
+  user_input = input("User: ")
+
+  match user_input.lower():
+    case 'wrong':
+      learnt = input("What's the correct answer?\n")
+      memories[prev_input] = learnt
+      update_memory_file(memory_file_path, memories)
+      continue
+    case 'exit':
+      print("Robo: Bye Bye")
+      delete_memory_file(memory_file_path)
+      break
+    case 'thoughts?':
+      print("Robo: Extracting Memory File")
+      files.download(memory_file_path)
+      break
+    case _:
+      pass
+
+  prev_input = user_input
+
+  best_match = search_memory_file(user_input, list( memories.keys() ))
+
+  if best_match:
+    print(f"Robo: {memories[best_match]}")
+
+  else:
+    print("Robo: I don't know the Answer, As Always")
+    learnt = input("What's the correct answer?(Type 'skip' to Skip):\n")
+
+    if learnt.lower() != 'skip':
+      memories[user_input]=learnt
+      update_memory_file(memory_file_path, memories)
